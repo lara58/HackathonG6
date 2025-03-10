@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { AuthService } from '../../services/api';
+import { Link } from 'react-router-dom';
 import './register.css';
 
-function Register() {
-  const navigate = useNavigate();
+const Register = () => {
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -12,47 +12,57 @@ function Register() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       [name]: value
-    });
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     
+    // Basic validation
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
     }
-
+    
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+    
     try {
       setLoading(true);
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: formData.username,
-          email: formData.email,
-          password: formData.password,
-        }),
+      setError('');
+      
+      // Prepare the data to send to the backend
+      const userData = {
+        username: formData.username,
+        email: formData.email,
+        password: formData.password
+      };
+      
+      // Call the register method from your AuthService
+      const response = await AuthService.register(userData);
+      
+      setSuccess('Registration successful!');
+      
+      // Clear the form
+      setFormData({
+        username: '',
+        email: '',
+        password: '',
+        confirmPassword: ''
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Registration failed');
-      }
-
-      // Registration successful
-      navigate('/login');
-    } catch (error) {
-      setError(error.message || 'An error occurred during registration');
+      
+    } catch (err) {
+      console.error('Registration error:', err);
+      setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -62,64 +72,69 @@ function Register() {
     <div className="register-container">
       <div className="register-card">
         <h2>Create an Account</h2>
+        
         {error && <div className="error-message">{error}</div>}
+        {success && <div className="success-message">{success}</div>}
+        
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="username">Username</label>
+            <label>Username</label>
             <input
               type="text"
-              id="username"
               name="username"
               value={formData.username}
               onChange={handleChange}
               required
+              disabled={loading}
             />
           </div>
           <div className="form-group">
-            <label htmlFor="email">Email</label>
+            <label>Email</label>
             <input
               type="email"
-              id="email"
               name="email"
               value={formData.email}
               onChange={handleChange}
               required
+              disabled={loading}
             />
           </div>
           <div className="form-group">
-            <label htmlFor="password">Password</label>
+            <label>Password</label>
             <input
               type="password"
-              id="password"
               name="password"
               value={formData.password}
               onChange={handleChange}
               required
-              minLength="6"
+              disabled={loading}
             />
           </div>
           <div className="form-group">
-            <label htmlFor="confirmPassword">Confirm Password</label>
+            <label>Confirm Password</label>
             <input
               type="password"
-              id="confirmPassword"
               name="confirmPassword"
               value={formData.confirmPassword}
               onChange={handleChange}
               required
-              minLength="6"
+              disabled={loading}
             />
           </div>
-          <button type="submit" disabled={loading}>
+          <button 
+            type="submit" 
+            className="register-button"
+            disabled={loading}
+          >
             {loading ? 'Registering...' : 'Register'}
           </button>
         </form>
-        <p className="login-link">
-          Already have an account? <Link to="/login">Log in</Link>
+        <p>
+          Already have an account? <Link to="/login">Login</Link>
         </p>
       </div>
     </div>
   );
-}
+};
 
 export default Register;
