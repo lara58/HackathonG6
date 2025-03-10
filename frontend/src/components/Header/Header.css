@@ -1,0 +1,63 @@
+/* Style global pour le header */
+header {
+    top: 0;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 0 20px;
+    min-height: 80px;
+    background-color: #00b7ff;
+    align-items: center;
+    position: sticky;
+    z-index: 1000;
+  }
+  
+  /* Style du logo */
+  .logo-container {
+    display: flex;
+    align-items: center;
+  }
+  
+  .logo {
+    width: 50px;
+    height: 50px;
+    object-fit: contain; /* Pour que l'image garde ses proportions */
+  }
+  
+  /* Conteneur des icônes à droite */
+  .icons-list-container {
+    display: flex;
+    justify-content: flex-end;
+  }
+  
+  .icons-list {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .icons-list li {
+    margin-left: 20px; /* Espacement entre chaque icône */
+    cursor: pointer; /* Changement du curseur lors du survol */
+  }
+  
+  .icons-list img {
+    width: 25px;
+    height: 25px;
+    object-fit: contain; /* Pour garder les proportions de l'image */
+    transition: transform 0.3s ease; /* Effet de transition pour le hover */
+  }
+  
+  /* Effet de survol pour les icônes */
+  .icons-list img:hover {
+    transform: scale(1.2); /* Agrandir l'icône au survol */
+  }
+  
+  /* Icone de profil : ajout de border-radius pour rendre l'image circulaire */
+  .profile-icon img {
+    border-radius: 50%; /* Rendre l'image circulaire */
+    border: 2px solid #ffffff; /* Bordure blanche autour de l'image */
+    padding: 2px;
+  }
+  
