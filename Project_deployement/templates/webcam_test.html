@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webcam Emotion Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #video, #canvas {
+            width: 100%;
+            max-width: 640px;
+            margin-bottom: 10px;
+            background-color: #f0f0f0;
+        }
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .emotion {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+        .emotion-bar {
+            height: 20px;
+            background-color: #3498db;
+            margin-bottom: 5px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Webcam Emotion Recognition Test</h1>
+
+    <div>
+        <video id="video" autoplay></video>
+        <canvas id="canvas" style="display:none;"></canvas>
+    </div>
+
+    <div>
+        <button id="captureBtn">Capture Image</button>
+        <button id="analyzeBtn" disabled>Analyze Emotion</button>
+    </div>
+
+    <div id="result" class="emotion" style="display:none;">
+        <h2>Detected Emotion: <span id="mainEmotion"></span></h2>
+        <p>Confidence: <span id="confidence"></span></p>
+
+        <h3>All Emotions:</h3>
+        <div id="allEmotions"></div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const captureBtn = document.getElementById('captureBtn');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const mainEmotion = document.getElementById('mainEmotion');
+        const confidenceEl = document.getElementById('confidence');
+        const allEmotions = document.getElementById('allEmotions');
+        const result = document.getElementById('result');
+
+        let imageData = null;
+
+        // Démarrer la webcam
+        async function startWebcam() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+            } catch (err) {
+                console.error("Erreur d'accès à la webcam:", err);
+                alert("Impossible d'accéder à la webcam. Vérifiez vos permissions.");
+            }
+        }
+
+        // Capturer une image
+        captureBtn.addEventListener('click', () => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Afficher l'image capturée
+            canvas.style.display = 'block';
+            video.style.display = 'none';
+
+            // Convertir en base64
+            imageData = canvas.toDataURL('image/jpeg');
+
+            // Activer le bouton d'analyse
+            analyzeBtn.disabled = false;
+        });
+
+        // Analyser l'émotion
+        analyzeBtn.addEventListener('click', async () => {
+            if (!imageData) return;
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        image: imageData
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.message === 'No face detected') {
+                    alert('Aucun visage détecté. Veuillez réessayer.');
+                    // Revenir à la webcam
+                    canvas.style.display = 'none';
+                    video.style.display = 'block';
+                    return;
+                }
+
+                // Afficher le résultat
+                mainEmotion.textContent = data.emotion;
+                confidenceEl.textContent = (data.confidence * 100).toFixed(2) + '%';
+
+                // Afficher toutes les émotions
+                allEmotions.innerHTML = '';
+                for (const [emotion, score] of Object.entries(data.all_emotions)) {
+                    const percent = (score * 100).toFixed(2);
+                    allEmotions.innerHTML += `
+                        <div>
+                            <div class="emotion-bar" style="width: ${percent}%"></div>
+                            <div>${emotion}: ${percent}%</div>
+                        </div>
+                    `;
+                }
+
+                result.style.display = 'block';
+
+                // Dessiner la boîte autour du visage si disponible
+                if (data.face_location) {
+                    const { x, y, width, height } = data.face_location;
+                    const ctx = canvas.getContext('2d');
+                    ctx.strokeStyle = '#00ff00';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(x, y, width, height);
+                }
+
+            } catch (err) {
+                console.error("Erreur lors de l'analyse:", err);
+                alert("Une erreur s'est produite lors de l'analyse. Veuillez réessayer.");
+            }
+        });
+
+        // Bouton pour revenir à la webcam
+        const resetBtn = document.createElement('button');
+        resetBtn.textContent = 'Retour à la webcam';
+        resetBtn.addEventListener('click', () => {
+            canvas.style.display = 'none';
+            video.style.display = 'block';
+            result.style.display = 'none';
+            analyzeBtn.disabled = true;
+        });
+        document.querySelector('div:nth-of-type(2)').appendChild(resetBtn);
+
+        // Démarrer la webcam au chargement de la page
+        startWebcam();
+    </script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facial Expression Recognition API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Facial Expression Recognition API</h1>
+    <p>This API provides endpoints for facial emotion recognition.</p>
+
+    <h2>Endpoints</h2>
+    <ul>
+        <li><code>GET /health</code> - Check API status</li>
+        <li><code>POST /analyze</code> - Analyze facial expression in an image</li>
+        <li><code>GET /analyze/mona-lisa</code> - Get emotions for the Mona Lisa</li>
+        <li><code>GET /emotions</code> - List supported emotions</li>
+    </ul>
+
+    <h2>Usage Example</h2>
+    <pre>
+fetch('/analyze', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+        image: 'base64_encoded_image'
+    })
+})
+.then(response => response.json())
+.then(data => console.log(data));
+    </pre>
+
+    <h2>Response Format</h2>
+    <pre>
+{
+    "emotion": "happy",
+    "confidence": 0.92,
+    "all_emotions": {
+        "angry": 0.01,
+        "disgust": 0.02,
+        "fear": 0.01,
+        "happy": 0.92,
+        "sad": 0.01,
+        "surprise": 0.02,
+        "neutral": 0.01
+    },
+    "faces_detected": 1,
+    "face_location": {
+        "x": 100,
+        "y": 80,
+        "width": 200,
+        "height": 200
+    }
+}
+    </pre>
+</body>
+</html>

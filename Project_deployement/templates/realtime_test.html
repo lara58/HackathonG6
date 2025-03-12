@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Détection d'émotions en temps réel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .video-container {
+            position: relative;
+            width: 640px;
+        }
+        #video {
+            width: 100%;
+            background-color: #f0f0f0;
+        }
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .controls {
+            margin: 10px 0;
+        }
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .result-panel {
+            width: 250px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+        .emotion-indicator {
+            font-size: 24px;
+            font-weight: bold;
+            color: #3498db;
+            margin: 10px 0;
+        }
+        .fps-counter {
+            font-size: 12px;
+            color: #666;
+        }
+        .emotion-bars {
+            margin-top: 20px;
+        }
+        .emotion-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 5px;
+        }
+        .emotion-bar {
+            width: 100px;
+            height: 10px;
+            background-color: #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+        }
+        .bar {
+            height: 100%;
+            width: 0;
+            background-color: #3498db;
+            transition: width 0.5s;
+        }
+    </style>
+</head>
+<body>
+    <h1>Détection d'émotions en direct</h1>
+
+    <div class="controls">
+        <button id="startBtn">Démarrer</button>
+        <button id="stopBtn" disabled>Arrêter</button>
+    </div>
+
+    <div class="container">
+        <div class="video-container">
+            <video id="video" autoplay></video>
+            <canvas id="overlay"></canvas>
+        </div>
+
+        <div class="result-panel">
+            <h3>Émotion actuelle</h3>
+            <div class="emotion-indicator" id="currentEmotion">-</div>
+            <div>Confiance: <span id="confidence">-</span></div>
+            <div class="fps-counter">FPS: <span id="fps">0</span></div>
+            <h4>Statistiques</h4>
+            <div>Visages détectés: <span id="facesDetected">0</span></div>
+            <div id="apiStatus">API: Prêt</div>
+
+            <div class="emotion-bars">
+                <h4>Répartition des émotions</h4>
+                <div class="emotion-row">
+                    <span>Joie</span>
+                    <div class="emotion-bar"><div id="joyBar" class="bar"></div></div>
+                    <span id="joyValue">0%</span>
+                </div>
+                <div class="emotion-row">
+                    <span>Tristesse</span>
+                    <div class="emotion-bar"><div id="sadnessBar" class="bar"></div></div>
+                    <span id="sadnessValue">0%</span>
+                </div>
+                <div class="emotion-row">
+                    <span>Colère</span>
+                    <div class="emotion-bar"><div id="angerBar" class="bar"></div></div>
+                    <span id="angerValue">0%</span>
+                </div>
+                <div class="emotion-row">
+                    <span>Surprise</span>
+                    <div class="emotion-bar"><div id="surpriseBar" class="bar"></div></div>
+                    <span id="surpriseValue">0%</span>
+                </div>
+                <div class="emotion-row">
+                    <span>Dégoût</span>
+                    <div class="emotion-bar"><div id="disgustBar" class="bar"></div></div>
+                    <span id="disgustValue">0%</span>
+                </div>
+                <div class="emotion-row">
+                    <span>Peur</span>
+                    <div class="emotion-bar"><div id="fearBar" class="bar"></div></div>
+                    <span id="fearValue">0%</span>
+                </div>
+                <div class="emotion-row">
+                    <span>Neutre</span>
+                    <div class="emotion-bar"><div id="neutralBar" class="bar"></div></div>
+                    <span id="neutralValue">0%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const currentEmotion = document.getElementById('currentEmotion');
+        const confidenceEl = document.getElementById('confidence');
+        const facesDetected = document.getElementById('facesDetected');
+        const apiStatus = document.getElementById('apiStatus');
+
+        let isRunning = false;
+        let stream = null;
+        let animationFrame = null;
+
+        async function startWebcam() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                return true;
+            } catch (err) {
+                alert("Impossible d'accéder à la webcam.");
+                return false;
+            }
+        }
+        
+
+        async function processFrame() {
+            if (!isRunning) return;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageBase64 = canvas.toDataURL('image/jpeg');
+
+            try {
+                apiStatus.textContent = "API: Analyse...";
+                const response = await fetch('/analyze-frame', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: imageBase64 })
+                });
+
+                const data = await response.json();
+                apiStatus.textContent = "API: Connecté";
+
+                if (data.faces_detected === 0) {
+                    currentEmotion.textContent = "-";
+                    confidenceEl.textContent = "-";
+                    facesDetected.textContent = "0";
+                } else {
+                    currentEmotion.textContent = data.emotion;
+                    confidenceEl.textContent = (data.confidence * 100).toFixed(2) + '%';
+                    facesDetected.textContent = data.faces_detected;
+                    updateEmotionBars(data.all_emotions);
+                }
+            } catch (err) {
+                apiStatus.textContent = "API: Erreur";
+            }
+
+            animationFrame = requestAnimationFrame(processFrame);
+        }
+
+        function updateEmotionBars(emotions) {
+            Object.entries(emotions).forEach(([emotion, value]) => {
+                const bar = document.getElementById(`${emotion}Bar`);
+                if (bar) {
+                    bar.style.width = Math.round(value * 100) + "%";
+                    document.getElementById(`${emotion}Value`).textContent = Math.round(value * 100) + "%";
+                }
+            });
+        }
+
+        startBtn.addEventListener('click', async () => {
+            if (!stream) await startWebcam();
+            isRunning = true;
+            processFrame();
+        });
+
+        stopBtn.addEventListener('click', () => {
+            isRunning = false;
+        });
+
+        startWebcam();
+    </script>
+<script>
+    function updateEmotionBars(emotions) {
+        const emotionMap = {
+            'joie': 'joyBar',
+            'tristesse': 'sadnessBar',
+            'colère': 'angerBar',
+            'surprise': 'surpriseBar',
+            'dégoût': 'disgustBar',
+            'peur': 'fearBar',
+            'neutre': 'neutralBar'
+        };
+
+        Object.keys(emotionMap).forEach(emotion => {
+            const value = Math.round((emotions[emotion] || 0) * 100); // Par défaut à 0 si non trouvé
+            const barId = emotionMap[emotion];
+
+            document.getElementById(barId).style.width = value + "%";
+            document.getElementById(barId.replace("Bar", "Value")).textContent = value + "%";
+        });
+    }
+
+    async function processFrame() {
+        if (!isRunning) return;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageBase64 = canvas.toDataURL('image/jpeg');
+
+            try {
+                apiStatus.textContent = "API: Analyse en cours...";
+
+                const response = await fetch('/analyze-frame', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: imageBase64, emotions: "emotions", accurency: "0.90"})
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Erreur API: ${response.status} - ${response.statusText}`);
+                }
+            const data = await response.json();
+            apiStatus.textContent = "API: Connecté";
+
+            if (data.faces_detected === 0) {
+                currentEmotion.textContent = "-";
+                confidenceEl.textContent = "-";
+                facesDetected.textContent = "0";
+            } else {
+                currentEmotion.textContent = data.emotion;
+                confidenceEl.textContent = (data.confidence * 100).toFixed(2) + '%';
+                facesDetected.textContent = data.faces_detected;
+                updateEmotionBars(data.all_emotions);
+            }
+            
+            const result = await response.json();
+                console.log("✅ Réponse de l'API:", result);
+
+                apiStatus.textContent = `API: Analyse terminée - Émotion détectée: ${result.emotion || 'aucune'}`;
+   
+        } catch (err) {
+            apiStatus.textContent = "API: Erreur";
+        }
+
+        animationFrame = requestAnimationFrame(processFrame);
+    }
+</script>
+</body>
+</html>
